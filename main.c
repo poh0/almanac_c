@@ -5,9 +5,9 @@
 #include <time.h>
 #include <math.h>
 
-#define RESET   "\033[0m"
+#define RESET       "\033[0m"
 #define BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
-#define BOLDYELLOW   "\033[1m\033[33m"      /* Bold Yellow */
+#define BOLDYELLOW  "\033[1m\033[33m"      /* Bold Yellow */
 
 const char* const MONTHS[] = { 
     "Jan",
@@ -38,12 +38,8 @@ typedef struct {
     bool is_sig;
     bool is_current;
     size_t mday;
+    const char *note;
 } Date;
-
-typedef struct {
-    Date *date;
-    const char *note; // eg. "Mike's birthday 13:00"
-} Sig_Date;
 
 typedef struct {
     size_t first_weekday;
@@ -51,13 +47,26 @@ typedef struct {
     size_t curr_year;
     size_t curr_date;
     size_t cnt_dates; 
-    Sig_Date sig_dates[32];
     Date dates[32];
 } Calendar; 
 
-void print_sig_date(Sig_Date *sig_date) {
-    (void) sig_date;
-} 
+void print_sig_date_note(size_t index, Calendar *cal) {
+    
+    if (index + 1 > cal->cnt_dates) {
+        printf("Date doesn't exist\n");
+        return;
+    }
+
+    if (cal->dates[index].is_sig) {
+        printf("Note found on %zu. %s:\n", index+1, MONTHS[cal->curr_month]);
+        printf("%s\n", cal->dates[index].note);
+    }
+    else {
+        printf("Not a significant date.\n");
+        printf("Add new significant date with:\n");
+        printf("Usage: almanac sig <date>\n");
+    }
+}
 
 void print_calendar(Calendar *calendar) {
 
@@ -108,6 +117,19 @@ void print_calendar(Calendar *calendar) {
     printf("\n");
 } 
 
+void add_sig_date(Calendar *cal, size_t index, const char *note) {
+    
+    if (index + 1 > cal->cnt_dates) {
+        printf("Date doesn't exist\n");
+        return;
+    }
+
+    cal->dates[index].is_sig = true;
+    cal->dates[index].note = note;
+
+    printf("Note added successfully.\n");
+}
+
 void populate_dates(Calendar *cal) {
     Date *date = NULL;
     for (size_t i = 0; i < cal->cnt_dates; i++) {
@@ -116,8 +138,6 @@ void populate_dates(Calendar *cal) {
         date->is_current = (date->mday == cal->curr_date);
         date->is_sig = false;
     }
-    // Mock data
-    cal->dates[2].is_sig = true;
 }
 
 // we take time difference in seconds from
@@ -176,19 +196,28 @@ void init_calendar(Calendar *cal) {
     populate_dates(cal);
 }          
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     
-    // Handle ./almanac <date_num>
-    
-    // Handle ./almanac sig <date_num>
-    if (argc > 2 && strcmp("sig", argv[1]) != 0) {
-        printf("Usage: almanac sig <date_num>\n");
-        exit(0);
-    }
-
     Calendar *cal = (Calendar*) malloc(sizeof(Calendar));
     init_calendar(cal);
-    print_calendar(cal);
+
+    // Handle ./almanac <date_num>
+    if (argc == 2) {
+        size_t date = atoi(argv[1]);
+        print_sig_date_note(date - 1, cal);
+    }
+    // Handle ./almanac sig <date_num>
+    else if (argc > 2 && strcmp("sig", argv[1]) == 0) {
+        char note[30];
+        size_t date = atoi(argv[2]);
+        printf("Enter note for %zu. %s: ", date, MONTHS[cal->curr_month]);
+        scanf("%s", note);
+        add_sig_date(cal, date - 1, note);
+    }
+    else {
+        print_calendar(cal);
+    }
+
     free(cal);
     return 0;
 } 
