@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
-#include <math.h>
 
 #define RESET       "\033[0m"
 #define BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
