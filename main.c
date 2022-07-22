@@ -37,7 +37,7 @@ typedef struct {
     bool is_sig;
     bool is_current;
     size_t mday;
-    const char *note;
+    char *note;
 } Date;
 
 typedef struct {
@@ -49,16 +49,25 @@ typedef struct {
     Date dates[32];
 } Calendar; 
 
-void print_sig_date_note(size_t index, Calendar *cal) {
-    
+void add_sig_date(Calendar *cal, size_t index, const char *note) {
     if (index + 1 > cal->cnt_dates) {
         printf("Date doesn't exist\n");
         return;
     }
+    cal->dates[index].is_sig = true;
+    cal->dates[index].note = (const char*) malloc(strlen(note) + 1);
+    strcpy(cal->dates[index].note, note);
+}
 
-    if (cal->dates[index].is_sig) {
-        printf("Note found on %zu. %s:\n", index+1, MONTHS[cal->curr_month]);
-        printf("%s\n", cal->dates[index].note);
+void print_sig_date_note(size_t date_mday, Calendar *cal) {
+    
+    if (date_mday > cal->cnt_dates) {
+        printf("Date doesn't exist\n");
+        return;
+    }
+    if (cal->dates[date_mday - 1].is_sig) {
+        printf("Note found on %zu. %s:\n", cal->dates[date_mday-1].mday, MONTHS[cal->curr_month]);
+        printf("%s\n", cal->dates[date_mday-1].note);
     }
     else {
         printf("Not a significant date.\n");
@@ -116,18 +125,6 @@ void print_calendar(Calendar *calendar) {
     printf("\n");
 } 
 
-void add_sig_date(Calendar *cal, size_t index, const char *note) {
-    
-    if (index + 1 > cal->cnt_dates) {
-        printf("Date doesn't exist\n");
-        return;
-    }
-
-    cal->dates[index].is_sig = true;
-    cal->dates[index].note = note;
-
-    printf("Note added successfully.\n");
-}
 
 void populate_dates(Calendar *cal) {
     Date *date = NULL;
@@ -175,6 +172,44 @@ size_t get_weekday(struct tm time_now) {
     return this_month.tm_wday;
 }
 
+void chop_by_delim(char *src, char *delim, char **linedata) {
+    char *tok = strtok(src, delim);
+    size_t sz = 0;
+
+    while (tok != NULL) {
+        linedata[sz++] = tok;     
+        tok = strtok(NULL, delim);
+    }
+}
+
+void parse_sig_date(Calendar *cal, char *line) {
+    char *linedata[2];
+    char *datedata[3];
+    chop_by_delim(line, ";", linedata);
+    chop_by_delim(linedata[0], ".", datedata);
+
+    size_t date_mday = atoi(datedata[0]);
+
+    add_sig_date(cal, date_mday - 1, linedata[1]);
+}
+
+void slurp_sig_dates(Calendar *cal) {
+    char line[80] = {0};
+    unsigned int line_count = 0;
+    FILE* file = fopen("alma.txt", "r");
+    while (fgets(line, 80, file))
+    {
+        line[strlen(line) - 1] = '\0';
+        parse_sig_date(cal, line);
+        
+    }
+    fclose(file);
+}
+
+void save_new_sig_dates(Calendar *cal) {
+    (void*) cal;
+}
+
 void init_calendar(Calendar *cal) {
 
     time_t t = time(NULL);
@@ -193,6 +228,7 @@ void init_calendar(Calendar *cal) {
     cal->first_weekday  = get_weekday(time_now);
 
     populate_dates(cal);
+    slurp_sig_dates(cal);
 }          
 
 int main(int argc, char **argv) {
@@ -202,19 +238,25 @@ int main(int argc, char **argv) {
 
     // Handle ./almanac <date_num>
     if (argc == 2) {
-        size_t date = atoi(argv[1]);
-        print_sig_date_note(date - 1, cal);
+        int date = atoi(argv[1]);
+        print_sig_date_note(date, cal);
     }
     // Handle ./almanac sig <date_num>
     else if (argc > 2 && strcmp("sig", argv[1]) == 0) {
         char note[30];
         size_t date = atoi(argv[2]);
         printf("Enter note for %zu. %s: ", date, MONTHS[cal->curr_month]);
-        scanf("%s", note);
-        add_sig_date(cal, date - 1, note);
+        scanf("%29s", note);
+        add_sig_date(cal, date, note);
     }
     else {
         print_calendar(cal);
+    }
+
+    for (int i = 0; i < cal->cnt_dates; i++) {
+        if (cal->dates[i].is_sig) {
+            free(cal->dates[i].note);
+        }
     }
 
     free(cal);
