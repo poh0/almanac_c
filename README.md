@@ -6,7 +6,9 @@
 ## Demo
 Green color indicates current date and yellow is a date with note (significant date)
 
-![](images/demo.gif)
+<p align="center">
+<img src="images/demo.gif">
+</p>
 
 ## Usage
 
