@@ -8,7 +8,7 @@ CFLAGS=-Wall -Wextra -std=c11 -pedantic -ggdb
 LIBS=
 
 build:
-	$(CC) $(CFLAGS) -o $(EXEBIN)/$(BUILDDIR) main.c $(LIBS)
+	$(CC) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) main.c $(LIBS)
 
 .PHONY: install
 install:
@@ -17,7 +17,7 @@ install:
 
 .PHONY: uninstall
 uninstall:
-	sudo rm -rf $(PREFIX)/bin/$(EXEBIN)
+	sudo rm -rf $(PREFIX)/$(EXEBIN)
 
 clean:
 	rm -rf $(BUILDDIR)
