@@ -8,6 +8,9 @@
 #define BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
 #define BOLDYELLOW  "\033[1m\033[33m"      /* Bold Yellow */
 
+// This will be concatenated to home dir
+const char *save_file_name = "/alma.txt";
+
 // TODO: get rid of unsafe atois
 
 const char* const MONTHS[] = { 
@@ -193,8 +196,11 @@ void parse_sig_date(Calendar *cal, char *line) {
 }
 
 void slurp_sig_dates(Calendar *cal) {
-
-    FILE* file = fopen("alma.txt", "r");
+    char *homedir = getenv("HOME");
+    char *str = malloc(sizeof(homedir));
+    strcpy(str, homedir);
+    strcat(str, save_file_name);
+    FILE* file = fopen(str, "r");
 
     // Nothing to read, return
     if (file == NULL) {
@@ -209,11 +215,17 @@ void slurp_sig_dates(Calendar *cal) {
         line[strlen(line) - 1] = '\0';
         parse_sig_date(cal, line);
     }
+    free(str);
     fclose(file);
 }
 
 void save_new_sig_dates(Calendar *cal) {
-    FILE *fp = fopen("alma.txt", "w");
+    char *homedir = getenv("HOME");
+    char *str = malloc(sizeof(homedir));
+    strcpy(str, homedir);
+    strcat(str, save_file_name);
+    
+    FILE *fp = fopen(str, "w");
     if (fp == NULL) {
         printf("Error opening save file.");
         exit(1);
@@ -225,6 +237,7 @@ void save_new_sig_dates(Calendar *cal) {
                     cal->dates[i].mday, cal->curr_month + 1, cal->curr_year, cal->dates[i].note);
         }
     }
+    free(str);
 }
 
 Calendar *init_calendar() {
