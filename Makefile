@@ -2,7 +2,7 @@
 
 PREFIX=/usr/local/bin
 BUILDDIR=bin
-EXEBIN=cal
+EXEBIN=alm
 
 CFLAGS=-Wall -Wextra -std=c11 -pedantic -ggdb
 LIBS=

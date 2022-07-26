@@ -14,17 +14,17 @@ Green color indicates current date and yellow is a date with note (significant d
 
 Print calendar of current month
 ```sh
-$ cal
+$ alm
 ```
 
 Print the note of a date (if there is one)
 ```sh
-$ cal <date_num>
+$ alm <date_num>
 ```
 
 Add a note to a date
 ```sh
-$ cal sig <date_num>
+$ alm sig <date_num>
 ```
 
 ## Installation
