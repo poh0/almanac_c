@@ -197,7 +197,7 @@ void parse_sig_date(Calendar *cal, char *line) {
 
 void slurp_sig_dates(Calendar *cal) {
     char *homedir = getenv("HOME");
-    char *str = malloc(sizeof(homedir));
+    char *str = malloc(strlen(homedir) + strlen(save_file_name) + 1);
     strcpy(str, homedir);
     strcat(str, save_file_name);
     FILE* file = fopen(str, "r");
@@ -221,7 +221,7 @@ void slurp_sig_dates(Calendar *cal) {
 
 void save_new_sig_dates(Calendar *cal) {
     char *homedir = getenv("HOME");
-    char *str = malloc(sizeof(homedir));
+    char *str = malloc(strlen(homedir) + strlen(save_file_name) + 1);
     strcpy(str, homedir);
     strcat(str, save_file_name);
     
@@ -238,6 +238,7 @@ void save_new_sig_dates(Calendar *cal) {
         }
     }
     free(str);
+    fclose(fp);
 }
 
 Calendar *init_calendar() {
