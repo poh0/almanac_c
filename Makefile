@@ -10,6 +10,9 @@ LIBS=
 build:
 	$(CC) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) main.c $(LIBS)
 
+test:
+	@$(CC) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) main.c $(LIBS)
+
 .PHONY: install
 install:
 	sudo mkdir -p $(PREFIX)

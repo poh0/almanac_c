@@ -4,9 +4,11 @@
 #include <string.h>
 #include <time.h>
 
+
 #define RESET       "\033[0m"
 #define BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
 #define BOLDYELLOW  "\033[1m\033[33m"      /* Bold Yellow */
+
 
 // This will be concatenated to home dir
 const char *save_file_name = "/alma.txt";
@@ -190,8 +192,7 @@ void parse_sig_date(Calendar *cal, char *line) {
     char *datedata[3];
     split_by_delim(line, ";", linedata, 2);
     split_by_delim(linedata[0], ".", datedata, 3);
-    size_t date_mday = atoi(datedata[0]);
-
+    size_t date_mday = (size_t) strtol(datedata[0], (char **)NULL, 10);
     add_sig_date(cal, date_mday, linedata[1]);
 }
 
@@ -268,19 +269,18 @@ Calendar *init_calendar() {
 }          
 
 int main(int argc, char **argv) {
-
-
     Calendar *cal = init_calendar();
 
     // Handle ./almanac <date_num>
     if (argc == 2) {
-        int date = atoi(argv[1]);
+        int date = (int) strtol(argv[1], (char **)NULL, 10);
         print_sig_date_note(date, cal);
     }
+
     // Handle ./almanac sig <date_num>
     else if (argc > 2 && strcmp("sig", argv[1]) == 0) {
         char note[255];
-        size_t date = atoi(argv[2]);
+        size_t date = (size_t) strtol(argv[2], (char **)NULL, 10);
         printf("Enter note for %zu. %s: ", date, MONTHS[cal->curr_month]);
         fgets(note, 255, stdin);
         add_sig_date(cal, date, note);
@@ -295,7 +295,6 @@ int main(int argc, char **argv) {
             free(cal->dates[i].note);
         }
     }
-
     free(cal);
     return 0;
 } 
