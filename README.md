@@ -27,8 +27,14 @@ Add a note to a date
 $ alm sig <date_num>
 ```
 
+Where ```date_num``` is the day of the actual month.
+
 ## Installation
 ```sh
 $ mkdir bin
 $ make && make install
 ```
+
+## License
+
+The license for this project can be found in the [LICENSE](./LICENSE) file.

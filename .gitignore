@@ -1,1 +1,41 @@
-bin
+
+# We dont want the contents of that directory
+bin/*
+
+# But we want to keep that directory
+# otherwise you have to mkdir it every
+# time you build from a clean codebase
+!bin/.keep
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
