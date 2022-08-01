@@ -1,17 +1,13 @@
 # This file is hacky, please pr with a more elegant solution
-
 PREFIX=/usr/local/bin
 BUILDDIR=bin
 EXEBIN=alm
-
+SROUCEDIR=src
 CFLAGS=-Wall -Wextra -std=c11 -pedantic -ggdb
 LIBS=
 
 build:
-	$(CC) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) main.c $(LIBS)
-
-test:
-	@$(CC) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) main.c $(LIBS)
+	@$(CC) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) $(SROUCEDIR)/* $(LIBS)
 
 .PHONY: install
 install:
