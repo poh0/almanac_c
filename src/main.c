@@ -11,9 +11,9 @@
 
 
 // This will be concatenated to home dir
-const char *save_file_name = "/alma.txt";
+const char *SAVE_FILE_NAME = "/alma.txt";
 
-const char* const MONTHS[] = { 
+const char* const MONTHS[] = {
     "Jan",
     "Feb",
     "Mar",
@@ -100,38 +100,44 @@ void split_by_delim(char *src, char *delim, char **linedata, size_t size) {
     }
 }
 
+void warn_date_doesnt_exists(Calendar *cal) {
+    printf("Date doesn't exists.\n");
+    printf("%s has only %zu days.\n", MONTHS[cal->curr_month], cal->cnt_dates);
+}
+
 void add_sig_date(Calendar *cal, size_t date, char *note) {
     if (date > cal->cnt_dates) {
-        printf("Date doesn't exist\n");
-        return;
+        warn_date_doesnt_exists(cal);
     }
-    cal->dates[date - 1].is_sig = true;
-    cal->dates[date - 1].note = (char*) malloc(strlen(note) + 1);
-    strcpy(cal->dates[date - 1].note, note);
+    else {
+        cal->dates[date - 1].is_sig = true;
+        cal->dates[date - 1].note = (char*) malloc(strlen(note) + 1);
+        strcpy(cal->dates[date - 1].note, note);
+    }
 }
 
 void remove_sig_date(Calendar *cal, size_t date) {
     if (date > cal->cnt_dates) {
-        printf("Date doesn't exist\n");
-        return;
+        warn_date_doesnt_exists(cal);
     }
-    cal->dates[date - 1].is_sig = false;
-    free(cal->dates[date - 1].note);
+    else {
+        cal->dates[date - 1].is_sig = false;
+        free(cal->dates[date - 1].note);
+    }
 }
 
 void print_sig_date_note(size_t date_mday, Calendar *cal) {
     if (date_mday > cal->cnt_dates) {
-        printf("Date doesn't exist\n");
-        return;
+        warn_date_doesnt_exists(cal);
     }
-    if (cal->dates[date_mday - 1].is_sig) {
+    else if (cal->dates[date_mday - 1].is_sig) {
         printf("Note found on %zu. %s:\n", cal->dates[date_mday-1].mday, MONTHS[cal->curr_month]);
         printf("%s\n", cal->dates[date_mday-1].note);
     }
     else {
-        printf("Not a significant date.\n");
+        printf("Not a significant date.\n\n");
         printf("Add new significant date with:\n");
-        printf("Usage: almanac sig <date>\n");
+        printf("\talm sig <date>\n");
     }
 }
 
@@ -205,9 +211,9 @@ void parse_sig_date(Calendar *cal, char *line) {
 
 void slurp_sig_dates(Calendar *cal) {
     char *homedir = getenv("HOME");
-    char *str = malloc(strlen(homedir) + strlen(save_file_name) + 1);
+    char *str = malloc(strlen(homedir) + strlen(SAVE_FILE_NAME) + 1);
     strcpy(str, homedir);
-    strcat(str, save_file_name);
+    strcat(str, SAVE_FILE_NAME);
     FILE* file = fopen(str, "r");
 
     // Nothing to read, return
@@ -229,9 +235,9 @@ void slurp_sig_dates(Calendar *cal) {
 
 void save_new_sig_dates(Calendar *cal) {
     char *homedir = getenv("HOME");
-    char *str = malloc(strlen(homedir) + strlen(save_file_name) + 1);
+    char *str = malloc(strlen(homedir) + strlen(SAVE_FILE_NAME) + 1);
     strcpy(str, homedir);
-    strcat(str, save_file_name);
+    strcat(str, SAVE_FILE_NAME);
     
     FILE *fp = fopen(str, "w");
     if (fp == NULL) {
@@ -250,15 +256,8 @@ void save_new_sig_dates(Calendar *cal) {
 }
 
 Calendar *init_calendar() {
-
     time_t t = time(NULL);
     struct tm time_now = *localtime(&t);
-
-//  struct tm time_now = { 0 };
-//  time_now.tm_year = 2005 - 1900;
-//  time_now.tm_mon = 6;
-//  time_now.tm_mday = 24;
-//  time_now.tm_isdst = -1;
 
     size_t dates_len = days_in_month(time_now);
     Calendar *cal = malloc(sizeof(Calendar) + sizeof(Date) * dates_len);

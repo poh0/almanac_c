@@ -1,4 +1,7 @@
 
+# Private TODO file
+SELF_TODO
+
 # We dont want the contents of that directory
 bin/*
 
