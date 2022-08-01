@@ -27,11 +27,16 @@ Add a note to a date
 $ alm sig <date_num>
 ```
 
+Remove note of a date
+```sh
+$ alm rm <date_num>
+```
+
 Where ```date_num``` is the day of the actual month.
 
 ## Installation
 ```sh
-$ mkdir bin
+$ git clone https://github.com/poh0/almanac_c.git
 $ make && make install
 ```
 

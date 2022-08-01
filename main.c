@@ -13,8 +13,6 @@
 // This will be concatenated to home dir
 const char *save_file_name = "/alma.txt";
 
-// TODO: get rid of unsafe atois
-
 const char* const MONTHS[] = { 
     "Jan",
     "Feb",
@@ -110,6 +108,15 @@ void add_sig_date(Calendar *cal, size_t date, char *note) {
     cal->dates[date - 1].is_sig = true;
     cal->dates[date - 1].note = (char*) malloc(strlen(note) + 1);
     strcpy(cal->dates[date - 1].note, note);
+}
+
+void remove_sig_date(Calendar *cal, size_t date) {
+    if (date > cal->cnt_dates) {
+        printf("Date doesn't exist\n");
+        return;
+    }
+    cal->dates[date - 1].is_sig = false;
+    free(cal->dates[date - 1].note);
 }
 
 void print_sig_date_note(size_t date_mday, Calendar *cal) {
@@ -271,13 +278,13 @@ Calendar *init_calendar() {
 int main(int argc, char **argv) {
     Calendar *cal = init_calendar();
 
-    // Handle ./almanac <date_num>
+    // Show the note of a date
     if (argc == 2) {
         int date = (int) strtol(argv[1], (char **)NULL, 10);
         print_sig_date_note(date, cal);
     }
 
-    // Handle ./almanac sig <date_num>
+    // Add a note to a date
     else if (argc > 2 && strcmp("sig", argv[1]) == 0) {
         char note[255];
         size_t date = (size_t) strtol(argv[2], (char **)NULL, 10);
@@ -286,6 +293,15 @@ int main(int argc, char **argv) {
         add_sig_date(cal, date, note);
         save_new_sig_dates(cal);
     }
+
+    // Remove note of a date 
+    else if (argc > 2 && strcmp("rm", argv[1]) == 0) {
+        size_t date = (size_t) strtol(argv[2], (char **)NULL, 10);
+        remove_sig_date(cal, date);
+        save_new_sig_dates(cal);
+        printf("Note removed.\n");
+    }
+
     else {
         print_calendar(cal);
     }
