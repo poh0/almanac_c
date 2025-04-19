@@ -4,11 +4,11 @@
 - Help, suggestions, criticism and pull requests are welcome.
 
 ## TODO
-[] - Add notes to arbitrary year/month
-[] - Edit notes
-[] - Add multiple notes to a date
-[] - Show multiple months at once
-[] - no need to load all notes into memory
+- Add notes to arbitrary year/month
+- Edit notes
+- Add multiple notes to a date
+- Show multiple months at once
+- no need to load all notes into memory
 
 ## Demo
 Green color indicates current date and yellow is a date with note (significant date)
