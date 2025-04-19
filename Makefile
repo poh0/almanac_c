@@ -7,7 +7,10 @@ CFLAGS=-Wall -Wextra -std=c11 -pedantic -ggdb
 LIBS=
 
 build:
-	@$(CC) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) $(SROUCEDIR)/* $(LIBS)
+	@$(CC) $(DEBUG) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) $(SROUCEDIR)/* $(LIBS)
+
+debug: DEBUG = -DDEBUG -ggdb
+debug: build
 
 .PHONY: install
 install:

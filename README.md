@@ -3,6 +3,13 @@
 - Keep in mind that this is my first actual C program.
 - Help, suggestions, criticism and pull requests are welcome.
 
+## TODO
+[] - Add notes to arbitrary year/month
+[] - Edit notes
+[] - Add multiple notes to a date
+[] - Show multiple months at once
+[] - no need to load all notes into memory
+
 ## Demo
 Green color indicates current date and yellow is a date with note (significant date)
 
@@ -32,7 +39,15 @@ Remove note of a date
 $ alm rm <date_num>
 ```
 
-Where ```date_num``` is the day of the actual month.
+Where ```date_num``` is the day of the current month.
+
+Notes are saved to ``~/.alma.txt``
+or in the executable directory if using the debug build.
+
+## Building
+just run ``$ make`` or ``$ make debug`` for debug build.
+Tested with clang and gcc
+
 
 ## Installation
 ```sh
