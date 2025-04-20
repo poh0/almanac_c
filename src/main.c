@@ -43,7 +43,6 @@ const char* const WEEKDAYS[] = {
 
 typedef struct {
     bool is_sig;
-    bool is_current;
     size_t mday;
     char *note;
 } Date;
@@ -108,14 +107,20 @@ void warn_date_doesnt_exist(Calendar *cal) {
     printf("%s has only %zu days.\n", MONTHS[cal->curr_month], cal->cnt_dates);
 }
 
+// PARAM: char *note
+// Pass NULL if we don't want to load note into memory
 void add_sig_date(Calendar *cal, size_t date, char *note) {
     if (date > cal->cnt_dates || date < 1) {
         return;
     }
     else {
         cal->dates[date - 1].is_sig = true;
-        cal->dates[date - 1].note = (char*) malloc(strlen(note) + 1);
-        strcpy(cal->dates[date - 1].note, note);
+        if (note != NULL) {
+            cal->dates[date - 1].note = (char*) malloc(strlen(note) + 1);
+            strcpy(cal->dates[date - 1].note, note);
+        } else {
+            cal->dates[date - 1].note = NULL;
+        }
     }
 }
 
@@ -126,6 +131,7 @@ void remove_sig_date(Calendar *cal, size_t date) {
     else {
         cal->dates[date - 1].is_sig = false;
         free(cal->dates[date - 1].note);
+        cal->dates[date - 1].note = NULL;
     }
 }
 
@@ -203,21 +209,15 @@ void populate_dates(Calendar *cal) {
     for (size_t i = 0; i < cal->cnt_dates; i++) {
         date = &cal->dates[i];
         date->mday = i + 1;
-        date->is_current = (date->mday == cal->curr_date);
         date->is_sig = false;
     }
 }
 
-void parse_sig_date(Calendar *cal, char *line) {
-    char *linedata[2];
-    char *datedata[3];
-    split_by_delim(line, ";", linedata, 2);
-    split_by_delim(linedata[0], ".", datedata, 3);
-    size_t date_mday = (size_t) strtol(datedata[0], (char **)NULL, 10);
-    add_sig_date(cal, date_mday, linedata[1]);
-}
 
-void slurp_sig_dates(Calendar *cal) {
+// PARAM: size_t mday_note_to_load
+// - Pass 0 if modifying a note (removing, adding a note). The function loads every note into memory.
+// - Pass a valid day of month to load only a specific day's note
+void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
 #ifndef DEBUG
     char *homedir = getenv("HOME");
 #else
@@ -245,7 +245,18 @@ void slurp_sig_dates(Calendar *cal) {
         if (len > 0 && line[line_len - 1] == '\n') {
             line[line_len - 1] = '\0';
         }
-        parse_sig_date(cal, line);
+
+        char *linedata[2];
+        char *datedata[3];
+        split_by_delim(line, ";", linedata, 2);
+        split_by_delim(linedata[0], ".", datedata, 3);
+        size_t date_mday = (size_t) strtol(datedata[0], (char **)NULL, 10);
+
+        if (date_mday == mday_note_to_load || !mday_note_to_load) {
+            add_sig_date(cal, date_mday, linedata[1]);
+        } else {
+            add_sig_date(cal, date_mday, NULL);
+        }
     }
 
     fclose(file);
@@ -291,22 +302,19 @@ Calendar init_calendar(void) {
     cal.first_weekday  = get_first_weekday(&time_now);
 
     populate_dates(&cal);
-    slurp_sig_dates(&cal);
 
     return cal;
-}          
+}
 
 void free_notes(Calendar* cal) {
-    for(size_t i = 0; cal->cnt_dates; i++) {
-        if (cal->dates[i].is_sig) {
+    for(size_t i = 0; i < cal->cnt_dates; i++) {
+        if (cal->dates[i].is_sig && cal->dates[i].note != NULL) {
             free(cal->dates[i].note);
         }
     }
 }
 
 int main(int argc, char **argv) {
-
-    Calendar cal = init_calendar();
 
     // Show the note of a date
     if (argc == 2) {
@@ -315,12 +323,14 @@ int main(int argc, char **argv) {
         int date = strtol(argv[1], &endptr, 10);
 
         if (*endptr != '\0') {
-            free_notes(&cal);
             printf("Invalid input, please enter an integer for date.\n");
             return 1;
         }
-
+        Calendar cal = init_calendar();
+        slurp_sig_dates(&cal, date);
         print_sig_date_note(date, &cal);
+        free_notes(&cal);
+
     }
 
     // Add a note to a date
@@ -330,7 +340,6 @@ int main(int argc, char **argv) {
         int date = strtol(argv[2], &endptr, 10);
 
         if (*endptr != '\0') {
-            free_notes(&cal);
             printf("Invalid input, please enter an integer for date.\n");
             return 1;
         }
@@ -351,12 +360,14 @@ int main(int argc, char **argv) {
                 note[len - 1] = '\0';
             }
 
+            Calendar cal = init_calendar();
+            slurp_sig_dates(&cal, 0);
             add_sig_date(&cal, date, note);
             save_new_sig_dates(&cal);
+            free_notes(&cal);
         }
         else {
             printf("Error reading note.\n");
-            free_notes(&cal);
             return 1;
         }
     }
@@ -368,19 +379,26 @@ int main(int argc, char **argv) {
 
         if (*endptr != '\0') {
             printf("Invalid input, please enter an integer for date.\n");
-            free_notes(&cal);
             return 1;
         }
+
+        Calendar cal = init_calendar();
+        slurp_sig_dates(&cal, 0);
+
         remove_sig_date(&cal, date);
         save_new_sig_dates(&cal);
+
         printf("Note removed.\n");
+        free_notes(&cal);
     }
 
+    // No args were passed, just print calendar
     else {
+        Calendar cal = init_calendar();
+        slurp_sig_dates(&cal, cal.curr_date);
         print_calendar(&cal);
+        free_notes(&cal);
     }
-
-    free_notes(&cal);
 
     return 0;
 } 
