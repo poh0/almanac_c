@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
@@ -20,6 +21,7 @@
 
 // This will be concatenated to home dir except for debug
 #define SAVE_DIR_NAME "/.alma/"
+#define FILE_NAME_FMT "%04" PRIu16 "-%02" PRIu8 ".txt"
 
 const char* const MONTHS[] = {
     "Jan",
@@ -47,26 +49,26 @@ const char* const WEEKDAYS[] = {
 };
 
 typedef struct {
+    uint8_t mday;
     bool is_sig;
-    size_t mday;
     char *note;
 } Date;
 
 typedef struct {
-    size_t first_weekday;
-    size_t curr_month;
-    size_t curr_year;
-    size_t curr_mday;
-    size_t cnt_dates;
+    uint8_t first_weekday;
+    uint8_t curr_month;
+    uint16_t curr_year;
+    uint8_t curr_mday;
+    uint8_t cnt_dates;
     Date dates[MAX_DATES_IN_MONTH];
 } Calendar; 
 
-bool is_leap_year(size_t year) {
+bool is_leap_year(int year) {
     return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
 }
 
 // current month's first day to next month's first day
-size_t days_in_month(size_t month, size_t year) {
+int days_in_month(int month, int year) {
     if (month < 1 || month > 12) {
         return 0;
     }
@@ -77,7 +79,7 @@ size_t days_in_month(size_t month, size_t year) {
 }
 
 // Get first day of week of a month
-size_t first_dow_zeller(size_t month, size_t year) {
+int first_dow_zeller(int month, int year) {
 
     if (month <= 2) {
         month += 12;
@@ -116,7 +118,7 @@ int split_by_delim(char *src, char delim, char **linedata, size_t n) {
 
 void warn_date_doesnt_exist(Calendar *cal) {
     printf("Date doesn't exist.\n");
-    printf("%s has only %zu days.\n", MONTHS[cal->curr_month], cal->cnt_dates);
+    printf("%s has only %" PRIu8 " days.\n", MONTHS[cal->curr_month], cal->cnt_dates);
 }
 
 // PARAM: char *note
@@ -152,7 +154,7 @@ void print_sig_date_note(size_t date_mday, Calendar *cal) {
         warn_date_doesnt_exist(cal);
     }
     else if (cal->dates[date_mday - 1].is_sig) {
-        printf("Note found on %zu. %s:\n", cal->dates[date_mday-1].mday, MONTHS[cal->curr_month]);
+        printf("Note found on %" PRIu8 ". %s:\n", cal->dates[date_mday-1].mday, MONTHS[cal->curr_month]);
         printf("%s\n", cal->dates[date_mday-1].note);
     }
     else {
@@ -167,7 +169,7 @@ void print_calendar(Calendar *calendar) {
     size_t begin_day_idx = calendar->first_weekday;
 
     // Print month and year
-    printf("          %s %zu\n", MONTHS[calendar->curr_month], calendar->curr_year);
+    printf("          %s %" PRIu16 "\n", MONTHS[calendar->curr_month], calendar->curr_year);
 
     // Print weekdays
     for (size_t i = 0; i < 7; i++) {
@@ -238,12 +240,12 @@ void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
 #else
     char *homedir = ".";
 #endif
-    size_t len = strlen(homedir)+ sizeof SAVE_DIR_NAME + sizeof "%04zu-%02zu.txt" - 1;
+    size_t len = strlen(homedir)+ sizeof SAVE_DIR_NAME + sizeof FILE_NAME_FMT - 1;
     char buff[len];
     strcpy(buff, homedir);
     strcat(buff, SAVE_DIR_NAME);
-    char filename[sizeof "%04zu-%02zu.txt"];
-    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month + 1);
+    char filename[sizeof FILE_NAME_FMT];
+    snprintf(filename, sizeof filename, FILE_NAME_FMT, cal->curr_year, cal->curr_month + 1);
     strcat(buff, filename);
 
     FILE* file = fopen(buff, "r");
@@ -294,12 +296,12 @@ void save_new_sig_dates(Calendar *cal) {
 #else
     char *homedir = ".";
 #endif
-    size_t len = strlen(homedir)+ sizeof SAVE_DIR_NAME + sizeof "%04zu-%02zu.txt" - 1;
+    size_t len = strlen(homedir)+ sizeof SAVE_DIR_NAME + sizeof FILE_NAME_FMT - 1;
     char buff[len];
     strcpy(buff, homedir);
     strcat(buff, SAVE_DIR_NAME);
-    char filename[sizeof "%04zu-%02zu.txt"];
-    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month + 1);
+    char filename[sizeof FILE_NAME_FMT];
+    snprintf(filename, sizeof filename, FILE_NAME_FMT, cal->curr_year, cal->curr_month + 1);
 
     // just call mkdir, no need to check whether dir already exists.
     mkdir(buff, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -314,7 +316,7 @@ void save_new_sig_dates(Calendar *cal) {
 
     for (size_t i = 0; i < cal->cnt_dates; i++) {
         if (cal->dates[i].is_sig) {
-            fprintf(fp, "%02zu;%s\n",
+            fprintf(fp, "%02" PRIu8 ";%s\n",
                     cal->dates[i].mday, cal->dates[i].note);
         }
     }
@@ -324,7 +326,7 @@ void save_new_sig_dates(Calendar *cal) {
 
 
 // PARAMS month and year; pass 0 to get current year and month
-Calendar init_calendar(size_t month, size_t year) {
+Calendar init_calendar(int month, int year) {
     time_t t = time(NULL);
     struct tm time_now = *localtime(&t);
 
