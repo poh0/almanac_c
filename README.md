@@ -40,7 +40,7 @@ $ alm rm <date_num>
 
 Where ```date_num``` is the day of the current month.
 
-Notes are saved to ``~/.alma.txt``
+Notes are saved to ``~/.alma/YYYY-MM.txt``, own file for each year and month.
 or in the executable directory if using the debug build.
 
 ## Building
