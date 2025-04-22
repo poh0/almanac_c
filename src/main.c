@@ -97,27 +97,19 @@ size_t first_dow_zeller(size_t month, size_t year) {
 
 // Split string by a delimeter, results saved to linedata
 // nonzero = string was split into <size> parts successfully
-int split_by_delim(char *src, char delim, char **linedata, size_t size) {
-
+int split_by_delim(char *src, char delim, char **linedata, size_t n) {
+    //example:
     // 22.22.22\0
-    // 22\022.22\0
-    // 22\022\022\0
-
-    char *tok = strchr(src, delim);
-    if (tok == NULL) {
-        return 0;
-    }
+    // 22\022.22\0 if n = 2
+    // 22\022\022\0 if n = 3
+    char *delim_ptr;
     linedata[0] = src;
-    linedata[0][tok - src] = '\0';
-    linedata[1] = tok + 1;
-
-    size_t sz = 2;
-    while (sz < size) {
-        if ((tok = strchr(linedata[sz-1], delim)) == NULL) {
+    for (size_t sz = 1; sz < n; sz++) {
+        if ((delim_ptr = strchr(linedata[sz-1], delim)) == NULL) {
             return 0;
         }
-        linedata[sz-1][tok - linedata[sz-1]] = '\0';
-        linedata[sz] = tok + 1;
+        linedata[sz-1][delim_ptr - linedata[sz-1]] = '\0';
+        linedata[sz] = delim_ptr + 1;
     }
     return 1;
 }
@@ -251,7 +243,7 @@ void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
     strcpy(buff, homedir);
     strcat(buff, SAVE_DIR_NAME);
     char filename[sizeof "%04zu-%02zu.txt"];
-    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month);
+    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month + 1);
     strcat(buff, filename);
 
     FILE* file = fopen(buff, "r");
@@ -307,7 +299,7 @@ void save_new_sig_dates(Calendar *cal) {
     strcpy(buff, homedir);
     strcat(buff, SAVE_DIR_NAME);
     char filename[sizeof "%04zu-%02zu.txt"];
-    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month);
+    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month + 1);
 
     // just call mkdir, no need to check whether dir already exists.
     mkdir(buff, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -341,9 +333,8 @@ Calendar init_calendar(size_t month, size_t year) {
     cal.curr_year      = year ? year : (time_now.tm_year + 1900);
     cal.curr_month     = month ? month : time_now.tm_mon;
     cal.curr_mday      = time_now.tm_mday;
-    cal.cnt_dates      = days_in_month(cal.curr_month, cal.curr_year);
-    cal.first_weekday  = first_dow_zeller(cal.curr_month, cal.curr_year);
-
+    cal.cnt_dates      = days_in_month(cal.curr_month+1, cal.curr_year);
+    cal.first_weekday  = first_dow_zeller(cal.curr_month+1, cal.curr_year);
     populate_dates(&cal);
 
     return cal;
