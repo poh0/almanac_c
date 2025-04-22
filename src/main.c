@@ -1,9 +1,14 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <sys/stat.h>
 
 #define RESET       "\033[0m"
 #define BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
@@ -11,10 +16,10 @@
 
 #define MAX_DATES_IN_MONTH 31
 #define MAX_NOTE_LEN 255
-#define MAX_LINE_LEN sizeof("xx.xx.xx;") + MAX_NOTE_LEN
+#define MAX_LINE_LEN sizeof("XX;") + MAX_NOTE_LEN
 
 // This will be concatenated to home dir except for debug
-#define SAVE_FILE_NAME "/.alma.txt"
+#define SAVE_DIR_NAME "/.alma/"
 
 const char* const MONTHS[] = {
     "Jan",
@@ -51,55 +56,70 @@ typedef struct {
     size_t first_weekday;
     size_t curr_month;
     size_t curr_year;
-    size_t curr_date;
+    size_t curr_mday;
     size_t cnt_dates;
     Date dates[MAX_DATES_IN_MONTH];
 } Calendar; 
 
-// current month's first day to next month's first day
-size_t days_in_month(struct tm *time_now) {
-
-    struct tm next_month = { 0 };
-    next_month.tm_year = time_now->tm_year;
-    next_month.tm_mon = time_now->tm_mon + 1;
-    next_month.tm_mday = 1;
-    next_month.tm_isdst = -1;
-
-    struct tm this_month = { 0 };
-    this_month.tm_year = time_now->tm_year;
-    this_month.tm_mon = time_now->tm_mon;
-    this_month.tm_mday = 1;
-    this_month.tm_isdst = -1;
-
-    time_t next_month_t = mktime(&next_month);
-    time_t this_month_t = mktime(&this_month);
-
-    double dDays = difftime(next_month_t, this_month_t) / 86400;
-    size_t days = (size_t) dDays;
-    return days;
+bool is_leap_year(size_t year) {
+    return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
 }
 
-// Get first weekday of a month
-size_t get_first_weekday(struct tm *time_now) {
-    struct tm this_month = { 0 };
-    this_month.tm_year = time_now->tm_year;
-    this_month.tm_mon = time_now->tm_mon;
-    this_month.tm_mday = 1;
-    this_month.tm_isdst = -1;
+// current month's first day to next month's first day
+size_t days_in_month(size_t month, size_t year) {
+    if (month < 1 || month > 12) {
+        return 0;
+    }
+    if (month == 2) {
+        return is_leap_year(year) ? 29 : 28;
+    }
+    return 30 | ((month & 1) ^ (month >> 3));
+}
 
-    mktime(&this_month);
-    return this_month.tm_wday;
+// Get first day of week of a month
+size_t first_dow_zeller(size_t month, size_t year) {
+
+    if (month <= 2) {
+        month += 12;
+        year -= 1;
+    }
+
+    int K = year % 100;
+    int J = year / 100;
+
+    int h = ((13 * (month + 1)) / 5 + K + K / 4 + J / 4 + (5 * J)) % 7;
+
+    // Convert Zeller’s result to 0=Sunday, 1=Monday, ...
+    int weekday = (h + 6) % 7;
+
+    return weekday;
 }
 
 // Split string by a delimeter, results saved to linedata
-void split_by_delim(char *src, char *delim, char **linedata, size_t size) {
-    char *tok = strtok(src, delim);
-    size_t sz = 0;
+// nonzero = string was split into <size> parts successfully
+int split_by_delim(char *src, char delim, char **linedata, size_t size) {
 
-    while (tok != NULL && sz < size) {
-        linedata[sz++] = tok;     
-        tok = strtok(NULL, delim);
+    // 22.22.22\0
+    // 22\022.22\0
+    // 22\022\022\0
+
+    char *tok = strchr(src, delim);
+    if (tok == NULL) {
+        return 0;
     }
+    linedata[0] = src;
+    linedata[0][tok - src] = '\0';
+    linedata[1] = tok + 1;
+
+    size_t sz = 2;
+    while (sz < size) {
+        if ((tok = strchr(linedata[sz-1], delim)) == NULL) {
+            return 0;
+        }
+        linedata[sz-1][tok - linedata[sz-1]] = '\0';
+        linedata[sz] = tok + 1;
+    }
+    return 1;
 }
 
 void warn_date_doesnt_exist(Calendar *cal) {
@@ -179,7 +199,7 @@ void print_calendar(Calendar *calendar) {
             continue;
         }
 
-        else if (current_idx + 1 == calendar->curr_date) {
+        else if (current_idx + 1 == calendar->curr_mday) {
             if (calendar->dates[current_idx].is_sig)
                 printf(BOLDGREEN "%3zu!" RESET, ++current_idx);
             else
@@ -198,8 +218,8 @@ void print_calendar(Calendar *calendar) {
     }
     printf("\n");
 
-    if (calendar->dates[calendar->curr_date - 1].is_sig) {
-        printf("You have a note for today: %s\n", calendar->dates[calendar->curr_date-1].note);
+    if (calendar->dates[calendar->curr_mday - 1].is_sig) {
+        printf("You have a note for today: %s\n", calendar->dates[calendar->curr_mday-1].note);
     }
 
 } 
@@ -220,16 +240,23 @@ void populate_dates(Calendar *cal) {
 void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
 #ifndef DEBUG
     char *homedir = getenv("HOME");
+    if (homedir == NULL) {
+        homedir = getpwuid(getuid())->pw_dir;
+    }
 #else
     char *homedir = ".";
 #endif
-    size_t len = strlen(homedir)+ sizeof SAVE_FILE_NAME + 1;
+    size_t len = strlen(homedir)+ sizeof SAVE_DIR_NAME + sizeof "%04zu-%02zu.txt" - 1;
     char buff[len];
     strcpy(buff, homedir);
-    strcat(buff, SAVE_FILE_NAME);
+    strcat(buff, SAVE_DIR_NAME);
+    char filename[sizeof "%04zu-%02zu.txt"];
+    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month);
+    strcat(buff, filename);
+
     FILE* file = fopen(buff, "r");
 
-    // Nothing to read, return
+    // File not found so no saved notes for the month, we can return
     if (file == NULL) {
         return;
     }
@@ -247,10 +274,14 @@ void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
         }
 
         char *linedata[2];
-        char *datedata[3];
-        split_by_delim(line, ";", linedata, 2);
-        split_by_delim(linedata[0], ".", datedata, 3);
-        size_t date_mday = (size_t) strtol(datedata[0], (char **)NULL, 10);
+        if (!split_by_delim(line, ';', linedata, 2)) {
+            continue;
+        }
+
+        char *endptr;
+        size_t date_mday = (size_t) strtol(linedata[0], &endptr, 10);
+
+        if (*endptr != '\0') continue;
 
         if (date_mday == mday_note_to_load || !mday_note_to_load) {
             add_sig_date(cal, date_mday, linedata[1]);
@@ -264,42 +295,54 @@ void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
 
 void save_new_sig_dates(Calendar *cal) {
 #ifndef DEBUG
-    const char *homedir = getenv("HOME");
+    char *homedir = getenv("HOME");
+    if (homedir == NULL) {
+        homedir = getpwuid(getuid())->pw_dir;
+    }
 #else
-    const char *homedir = ".";
+    char *homedir = ".";
 #endif
-    size_t len = strlen(homedir)+ sizeof SAVE_FILE_NAME + 1;
+    size_t len = strlen(homedir)+ sizeof SAVE_DIR_NAME + sizeof "%04zu-%02zu.txt" - 1;
     char buff[len];
     strcpy(buff, homedir);
-    strcat(buff, SAVE_FILE_NAME);
-    
+    strcat(buff, SAVE_DIR_NAME);
+    char filename[sizeof "%04zu-%02zu.txt"];
+    snprintf(filename, sizeof filename, "%04zu-%02zu.txt", cal->curr_year, cal->curr_month);
+
+    // just call mkdir, no need to check whether dir already exists.
+    mkdir(buff, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+    strcat(buff, filename);
+
     FILE *fp = fopen(buff, "w");
     if (fp == NULL) {
-        printf("Error opening save file.");
+        printf("Error opening save file.\n");
         exit(1);
     }
 
     for (size_t i = 0; i < cal->cnt_dates; i++) {
         if (cal->dates[i].is_sig) {
-            fprintf(fp, "%02zu.%02zu.%zu;%s\n",
-                    cal->dates[i].mday, cal->curr_month + 1, cal->curr_year, cal->dates[i].note);
+            fprintf(fp, "%02zu;%s\n",
+                    cal->dates[i].mday, cal->dates[i].note);
         }
     }
     fclose(fp);
 
 }
 
-Calendar init_calendar(void) {
+
+// PARAMS month and year; pass 0 to get current year and month
+Calendar init_calendar(size_t month, size_t year) {
     time_t t = time(NULL);
     struct tm time_now = *localtime(&t);
 
     Calendar cal;
 
-    cal.curr_year      = time_now.tm_year + 1900;
-    cal.curr_month     = time_now.tm_mon;
-    cal.curr_date      = time_now.tm_mday;
-    cal.cnt_dates      = days_in_month(&time_now);
-    cal.first_weekday  = get_first_weekday(&time_now);
+    cal.curr_year      = year ? year : (time_now.tm_year + 1900);
+    cal.curr_month     = month ? month : time_now.tm_mon;
+    cal.curr_mday      = time_now.tm_mday;
+    cal.cnt_dates      = days_in_month(cal.curr_month, cal.curr_year);
+    cal.first_weekday  = first_dow_zeller(cal.curr_month, cal.curr_year);
 
     populate_dates(&cal);
 
@@ -326,7 +369,7 @@ int main(int argc, char **argv) {
             printf("Invalid input, please enter an integer for date.\n");
             return 1;
         }
-        Calendar cal = init_calendar();
+        Calendar cal = init_calendar(0, 0);
         slurp_sig_dates(&cal, date);
         print_sig_date_note(date, &cal);
         free_notes(&cal);
@@ -360,7 +403,7 @@ int main(int argc, char **argv) {
                 note[len - 1] = '\0';
             }
 
-            Calendar cal = init_calendar();
+            Calendar cal = init_calendar(0, 0);
             slurp_sig_dates(&cal, 0);
             add_sig_date(&cal, date, note);
             save_new_sig_dates(&cal);
@@ -382,7 +425,7 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        Calendar cal = init_calendar();
+        Calendar cal = init_calendar(0, 0);
         slurp_sig_dates(&cal, 0);
 
         remove_sig_date(&cal, date);
@@ -394,8 +437,8 @@ int main(int argc, char **argv) {
 
     // No args were passed, just print calendar
     else {
-        Calendar cal = init_calendar();
-        slurp_sig_dates(&cal, cal.curr_date);
+        Calendar cal = init_calendar(0, 0);
+        slurp_sig_dates(&cal, cal.curr_mday);
         print_calendar(&cal);
         free_notes(&cal);
     }

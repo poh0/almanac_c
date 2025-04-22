@@ -3,13 +3,14 @@ PREFIX=/usr/local/bin
 BUILDDIR=bin
 EXEBIN=alm
 SROUCEDIR=src
-CFLAGS=-Wall -Wextra -std=c11 -pedantic -ggdb
+CFLAGS=-Wall -Wextra -std=c11 -pedantic
+OPTFLAGS=-O3 -s
 LIBS=
 
 build:
-	@$(CC) $(DEBUG) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) $(SROUCEDIR)/* $(LIBS)
+	@$(CC) $(OPTFLAGS) $(CFLAGS) -o $(BUILDDIR)/$(EXEBIN) $(SROUCEDIR)/* $(LIBS)
 
-debug: DEBUG = -DDEBUG -ggdb
+debug: OPTFLAGS = -DDEBUG -ggdb -O0
 debug: build
 
 .PHONY: install
