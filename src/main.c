@@ -236,11 +236,7 @@ void populate_dates(Calendar *cal) {
     }
 }
 
-
-// PARAM: size_t mday_note_to_load
-// - Pass 0 if modifying a note (removing, adding a note). The function loads every note into memory.
-// - Pass a valid day of month to load only a specific day's note
-void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
+FILE *get_save_file_handle(Calendar *cal, const char *modes) {
 #ifndef DEBUG
     char *homedir = getenv("HOME");
     if (homedir == NULL) {
@@ -255,9 +251,22 @@ void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
     strcat(buff, SAVE_DIR_NAME);
     char filename[sizeof FILE_NAME_FMT];
     snprintf(filename, sizeof filename, FILE_NAME_FMT, cal->curr_year, cal->curr_month + 1);
-    strcat(buff, filename);
 
-    FILE* file = fopen(buff, "r");
+    if (strcmp(modes, "w") == 0) {
+        // just call mkdir, no need to check whether dir already exists.
+        mkdir(buff, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    }
+    strcat(buff, filename);
+    FILE *fp = fopen(buff, modes);
+    return fp;
+}
+
+// PARAM: size_t mday_note_to_load
+// - Pass 0 if modifying a note (removing, adding a note). The function loads every note into memory.
+// - Pass a valid day of month to load only a specific day's note
+void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
+
+    FILE* file = get_save_file_handle(cal, "r");
 
     // File not found so no saved notes for the month, we can return
     if (file == NULL) {
@@ -272,7 +281,7 @@ void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
         }
         // Remove trailing newline, if present
         size_t line_len = strlen(line);
-        if (len > 0 && line[line_len - 1] == '\n') {
+        if (line_len > 0 && line[line_len - 1] == '\n') {
             line[line_len - 1] = '\0';
         }
 
@@ -296,27 +305,9 @@ void slurp_sig_dates(Calendar *cal, size_t mday_note_to_load) {
 }
 
 void save_new_sig_dates(Calendar *cal) {
-#ifndef DEBUG
-    char *homedir = getenv("HOME");
-    if (homedir == NULL) {
-        homedir = getpwuid(getuid())->pw_dir;
-    }
-#else
-    char *homedir = ".";
-#endif
-    size_t len = strlen(homedir)+ sizeof SAVE_DIR_NAME + sizeof FILE_NAME_FMT - 1;
-    char buff[len];
-    strcpy(buff, homedir);
-    strcat(buff, SAVE_DIR_NAME);
-    char filename[sizeof FILE_NAME_FMT];
-    snprintf(filename, sizeof filename, FILE_NAME_FMT, cal->curr_year, cal->curr_month + 1);
 
-    // just call mkdir, no need to check whether dir already exists.
-    mkdir(buff, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    FILE *fp = get_save_file_handle(cal, "w");
 
-    strcat(buff, filename);
-
-    FILE *fp = fopen(buff, "w");
     if (fp == NULL) {
         printf("Error opening save file.\n");
         exit(1);
@@ -331,7 +322,6 @@ void save_new_sig_dates(Calendar *cal) {
     fclose(fp);
 
 }
-
 
 // PARAMS month and year; pass 0 to get current year and month
 Calendar init_calendar(int month, int year) {
@@ -361,8 +351,9 @@ void free_notes(Calendar* cal) {
 int main(int argc, char **argv) {
 
     // TODO:
-    // alm -<n>, +<n> to show multiple months at once
-    // -m, -y, --help, etc
+    // alm -<n>, +<n> to show multiple months at once.
+    // -m, -y, --help, etc.
+    // Consider adding GNU readline or similar very soon.
 
     // Show the note of a date
     if (argc == 2) {
